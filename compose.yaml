@@ -1,0 +1,65 @@
+services:
+  kafka-broker:
+    image: confluentinc/cp-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka-broker:29092,PLAINTEXT_HOST://localhost:9092"
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-broker:29093"
+      KAFKA_LISTENERS: "PLAINTEXT://kafka-broker:29092,CONTROLLER://kafka-broker:29093,PLAINTEXT_HOST://0.0.0.0:9092"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" #must be unique
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    networks:
+      - cassandra-network
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry
+    restart: on-failure
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "PLAINTEXT://kafka-broker:29092"
+      SCHEMA_REGISTRY_HOST_NAME: "schema-registry"
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: "ERROR"
+    ports:
+      - "8085:8081"
+    networks:
+      - cassandra-network
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: "kafka-broker:29092"
+      CONNECT_REST_PORT: 28082 # Port na kojem Kafka Connect REST API sluša unutar containera #
+      CONNECT_LISTENERS: "http://0.0.0.0:28082"
+      CONNECT_GROUP_ID: "quickstart"
+      CONNECT_CONFIG_STORAGE_TOPIC: "quickstart-config"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_TOPIC: "quickstart-offsets"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: "quickstart-status"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter" # Definiše kako se KEY poruka konvertuje u Kafka
+      CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter" # Definiše kako se VALUE poruka konvertuje u Kafka
+      CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
+      CONNECT_PLUGIN_PATH: "/usr/share/confluent-hub-components"
+    depends_on:
+      - kafka-broker
+    restart: on-failure
+    ports:
+      - "8083:28082"
+    networks:
+      - cassandra-network
+networks:
+  cassandra-network:
+    external: true
+    name: assignment3-cassandra_cassandra-network

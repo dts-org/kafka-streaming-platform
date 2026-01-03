@@ -1,0 +1,40 @@
+# 1. Kreiraj subject sa BACKWARD kompatibilnošću
+curl -X PUT http://localhost:8081/config/user-backward \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "BACKWARD"}'
+
+# 2. Registruj V1
+curl -X POST http://localhost:8081/subjects/user-backward/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"email\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null}]}"
+  }'
+
+# 3. Registruj V2 - dodaj OPCIONALNO polje (BACKWARD dozvoljava)
+curl -X POST http://localhost:8081/subjects/user-backward/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"email\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null},{\"name\":\"address\",\"type\":[\"null\",\"string\"],\"default\":null}]}"
+  }'
+
+# 4. Registruj V3 - ukloni OPCIONALNO polje email (BACKWARD dozvoljava)
+curl -X POST http://localhost:8081/subjects/user-backward/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null},{\"name\":\"address\",\"type\":[\"null\",\"string\"],\"default\":null}]}"
+  }'
+
+# 5. Pokušaj V4 - promijeni tip polja (BACKWARD NE dozvoljava - očekuj grešku)
+curl -X POST http://localhost:8081/subjects/user-backward/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null},{\"name\":\"address\",\"type\":[\"null\",\"string\"],\"default\":null}]}"
+  }'
+// output: {"error_code":409,"message":"Schema being registered is incompatible with an earlier schema for subject \"user-backward\", details: [{errorType:'TYPE_MISMATCH', description:'The type (path '/fields/0/type') of a field in the new schema does not match with the old schema', additionalInfo:'reader type: STRING not compatible with writer type: INT'}, {oldSchemaVersion: 3}, {oldSchema: '{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null},{\"name\":\"address\",\"type\":[\"null\",\"string\"],\"default\":null}]}'}, {validateFields: 'false', compatibility: 'BACKWARD'}]"}
+
+curl http://localhost:8081/config/user-backward
+
+curl http://localhost:8081/subjects/user-backward/versions
+
+# 8. Dohvati najnoviju verziju
+curl http://localhost:8081/subjects/user-2backward/versions/latest

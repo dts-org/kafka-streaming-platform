@@ -1,0 +1,44 @@
+# 1. Kreiraj subject sa FORWARD kompatibilnošću
+curl -X PUT http://localhost:8081/config/user-forward \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "FORWARD"}'
+
+# 2. Registruj V1
+curl -X POST http://localhost:8081/subjects/user-forward/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"email\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null}]}"
+  }'
+
+# 3. Pokušaj V2 - dodaj OBAVEZNO polje (FORWARD NE dozvoljava bez default - očekuj grešku)
+curl -X POST http://localhost:8081/subjects/user-forward/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"email\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null},{\"name\":\"phone\",\"type\":\"string\"}]}"
+  }'
+
+# 3b. V2 alternativa - dodaj OPCIONALNO polje (FORWARD dozvoljava)
+curl -X POST http://localhost:8081/subjects/user-forward/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"email\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null},{\"name\":\"phone\",\"type\":[\"null\",\"string\"],\"default\":null}]}"
+  }'
+
+# 4. Registruj V3 - ukloni polje email (FORWARD dozvoljava)
+curl -X POST http://localhost:8081/subjects/user-forward/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null},{\"name\":\"phone\",\"type\":[\"null\",\"string\"],\"default\":null}]}"
+  }'
+
+# 5. Pokušaj V4 - promijeni tip (FORWARD NE dozvoljava - očekuj grešku)
+curl -X POST http://localhost:8081/subjects/user-forward/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null},{\"name\":\"phone\",\"type\":[\"null\",\"string\"],\"default\":null}]}"
+  }'
+
+# 6-8. Dohvati informacije
+curl http://localhost:8081/config/user-forward
+curl http://localhost:8081/subjects/user-forward/versions
+curl http://localhost:8081/subjects/user-forward/versions/latest
