@@ -1,6 +1,6 @@
 services:
   kafka-broker:
-    image: confluentinc/cp-kafka
+    image: confluentinc/cp-kafka:7.6.0
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
@@ -13,15 +13,19 @@ services:
       KAFKA_LISTENERS: "PLAINTEXT://kafka-broker:29092,CONTROLLER://kafka-broker:29093,PLAINTEXT_HOST://0.0.0.0:9092"
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" #must be unique
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" #must be uniqueKKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAkkkkkkAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAKAFKAAFKAKAFKAKAFKAKAFKA
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_OFFSETS_REPLICATION_FACTOR: 1
     ports:
       - "9092:9092"
       - "9101:9101"
     networks:
       - cassandra-network
+      - datalakeminio
 
   schema-registry:
-    image: confluentinc/cp-schema-registry
+    image: confluentinc/cp-schema-registry:7.6.0
     restart: on-failure
     environment:
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "PLAINTEXT://kafka-broker:29092"
@@ -32,9 +36,21 @@ services:
       - "8085:8081"
     networks:
       - cassandra-network
+      - datalakeminio
 
   kafka-connect:
-    image: confluentinc/cp-kafka-connect
+    image: confluentinc/cp-kafka-connect:7.6.0
+    command:
+      - bash
+      - -c
+      - |
+        echo "Installing connector"
+        confluent-hub install --no-prompt confluentinc/kafka-connect-s3:11.0.8
+        confluent-hub install --no-prompt confluentinc/kafka-connect-cassandra:2.0.14
+        confluent-hub install --no-prompt debezium/debezium-connector-postgresql:1.9.7
+
+        echo "Launching Kafka connect worker"
+        /etc/confluent/docker/run
     environment:
       CONNECT_BOOTSTRAP_SERVERS: "kafka-broker:29092"
       CONNECT_REST_PORT: 28082 # Port na kojem Kafka Connect REST API sluša unutar containera #
@@ -59,7 +75,34 @@ services:
       - "8083:28082"
     networks:
       - cassandra-network
+      - datalakeminio
+
+  ksqlDB:
+    image: confluentinc/cp-ksqldb-server
+    environment:
+      KSQL_BOOTSTRAP_SERVERS: "kafka-broker:29092"
+      KSQL_LISTENERS: "http://0.0.0.0:8088"
+      KSQL_KSQL_SERVICE_ID: "confluent_ksql_node_1"
+      KSQL_KSQL_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      KSQL_KSQL_CONNECT_URL: "http://kafka-connect:28082"
+    ports:
+      - "8088:8088"
+    networks:
+      - cassandra-network
+    # Posto se za sada u stream zapisuju samo reviews u materialized stream
+    # bih mogla upisivati rayme agregacije
+    # koliko svaki review ima svaki od ratinga (Znaci da se updatea odmah)
+    # koliko overall
+
+  ksqlDB-cli:
+      image: confluentinc/cp-ksqldb-cli
+      entrypoint: bash -c "sleep infinity"
+      networks:
+        - cassandra-network
 networks:
   cassandra-network:
     external: true
-    name: assignment3-cassandra_cassandra-network
+    name: cassandra-setup_cassandra-network
+  datalakeminio:
+      external: true
+

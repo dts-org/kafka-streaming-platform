@@ -1,6 +1,10 @@
+.idea
 # Default ignored files
+.env
 /shelf/
-/workspace.xml
+user-value-v1.json
+pwc
+bwc
 # Editor-based HTTP Client requests
 /httpRequests/
 # Datasource local storage ignored files
