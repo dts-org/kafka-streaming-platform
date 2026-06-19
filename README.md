@@ -23,14 +23,23 @@ Stores and serves the Avro schemas used to serialize/deserialize messages on the
 
 ### Kafka Connect
 
-Runs all Kafka Connect connectors (sink and source). On startup, it installs three connector plugins via `confluent-hub`:
+On startup, Kafka Connect only **installs the connector plugins** via `confluent-hub`. Connectors are created afterward, manually, by sending REST requests (specified in `instConn.http`).
 
-- `confluentinc/kafka-connect-s3` — for the MinIO/S3 sink
-- `confluentinc/kafka-connect-cassandra` — for the Cassandra sinks
-- `debezium/debezium-connector-postgresql` — for CDC from PostgreSQL
+## Connectors
 
-Exposed on `localhost:8083` (mapped to container port `28082`), which is the REST API used to create, inspect, and delete connectors.
+### Source connector (1)
 
+| Connector name | Topic | Purpose |
+|---|---|---|
+| `postgres-debezium-connector` | `neondb.public.Product` | Debezium source connector that captures changes (CDC) from the `Product` table in the PostgreSQL (Neon) database and writes each change as an event to Kafka. |
+
+### Sink connectors (3)
+
+| Connector name | Topic | Purpose |
+|---|---|---|
+| `cassandra-sink-reviews-by-rating` | `reviews` | Reads review events (rating, product, user, title, description) and writes them into the `reviews_by_rating` table in the `ecommerce_reviews` Cassandra keyspace. This is the basic review tracking sink — every review event ends up here as-is. |
+| `cassandra-sink-product-review-avg-windowed` | `REV_AVG_WIN` | Reads the results of a windowed average-rating aggregation (built with ksqlDB) and writes them into the `product_review_avg_windowed_pkpid` table in the `product_analytics` keyspace. This is the sink used for the real-time aggregation results (average rating per product over a time window). |
+| `s3-bronze-sink` | `neondb.public.Product` | Reads the CDC events produced by the Debezium connector above and writes them as JSON into the `bronze` zone of the MinIO (S3-compatible) data lake, in the `datalake` bucket. |
 ### ksqlDB (server + CLI)
 
 ksqlDB server and CLI for building streams/tables on top of the Kafka topics, including windowed aggregations.
